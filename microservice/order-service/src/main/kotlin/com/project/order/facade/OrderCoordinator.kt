@@ -78,4 +78,15 @@ class OrderCoordinator(
             throw e
         }
     }
+
+    /**
+     * PENDING 으로 박힌 주문을 보상(Cancel)으로 종료시킨다. 어드민 강제취소 경로에서 호출한다.
+     * 각 참여자의 cancel 은 requestId 로 멱등하므로, 이미 reserve/confirm 이 풀린 참여자에도 안전하게 재호출된다.
+     */
+    fun cancel(orderId: Long) {
+        val requestId = orderId.toString()
+        productApiClient.cancel(ProductReserveCancelApiRequest(requestId))
+        pointApiClient.cancelPoint(PointReserveCancelApiRequest(requestId))
+        orderService.cancel(orderId)
+    }
 }

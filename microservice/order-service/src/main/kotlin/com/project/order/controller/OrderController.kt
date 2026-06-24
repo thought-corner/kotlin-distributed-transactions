@@ -1,8 +1,8 @@
 package com.project.order.controller
 
-import com.project.order.controller.dto.CreateOrderRequest
-import com.project.order.controller.dto.CreateOrderResponse
-import com.project.order.controller.dto.PlaceOrderRequest
+import com.project.order.controller.dto.request.CreateOrderRequest
+import com.project.order.controller.dto.request.PlaceOrderRequest
+import com.project.order.controller.dto.response.CreateOrderResponse
 import com.project.order.facade.OrderFacade
 import com.project.order.service.OrderService
 import org.springframework.web.bind.annotation.PostMapping

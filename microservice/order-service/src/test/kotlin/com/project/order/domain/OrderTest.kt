@@ -71,6 +71,47 @@ class OrderTest {
     }
 
     @Test
+    fun `복구 흐름 - PENDING 에서 재confirm 실패 시 pending 재진입은 멱등하다`() {
+        // given - 확정 실패로 PENDING 인 주문
+        val order = Order()
+        order.reserve()
+        order.pending()
+
+        // when - 스케줄러 재confirm 도 실패해 다시 pending 호출
+        order.pending()
+
+        // then - 예외 없이 PENDING 유지(멱등)
+        assertEquals(OrderStatus.PENDING, order.status)
+    }
+
+    @Test
+    fun `어드민 강제취소 - PENDING 에서 cancel 가능`() {
+        // given - PENDING 인 주문
+        val order = Order()
+        order.reserve()
+        order.pending()
+
+        // when - 어드민 강제 취소(보상)
+        order.cancel()
+
+        // then - CANCELLED
+        assertEquals(OrderStatus.CANCELLED, order.status)
+    }
+
+    @Test
+    fun `복구 시도 횟수 누적`() {
+        // given - 주문
+        val order = Order()
+
+        // when - 스케줄러가 두 번 재구동 시도
+        order.recordRecoveryAttempt()
+        order.recordRecoveryAttempt()
+
+        // then - 시도 횟수 누적
+        assertEquals(2, order.recoveryAttempts)
+    }
+
+    @Test
     fun `CANCELLED 는 종료 상태 - 재예약 불가`() {
         // given - 취소된 주문
         val order = Order()

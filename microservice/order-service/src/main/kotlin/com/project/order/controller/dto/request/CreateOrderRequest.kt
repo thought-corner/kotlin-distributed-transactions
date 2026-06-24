@@ -1,4 +1,4 @@
-package com.project.order.controller.dto
+package com.project.order.controller.dto.request
 
 import com.project.order.service.dto.command.CreateOrderCommand
 
