@@ -84,9 +84,10 @@ POST /order/place   → OrderFacade.placeOrder
 - 결과적으로 **재고 차감 + 포인트 차감 + 주문 상태 전이가 하나의 물리 트랜잭션**으로 묶인다.
 
 ```
-[ 단일 트랜잭션 ]
-   재고 차감 ──▶ 포인트 차감 ──▶ order.complete()
-        └──────── 어느 하나라도 실패하면 전부 ROLLBACK ────────┘
+단일 트랜잭션 (@Transactional)
+
+  재고 차감  ->  포인트 차감  ->  order.complete()
+    +- 어느 하나라도 실패하면 전부 ROLLBACK
 ```
 
 - 즉, 포인트가 부족해 예외가 나면 **앞서 차감한 재고까지 자동 원복**된다. 별도의 보상(compensation) 코드가 필요 없다.
