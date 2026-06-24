@@ -17,3 +17,24 @@
 | 5 | 동일 주문 1회 보장   |      ⚠️ 분산락 TTL 부재      |
 
 > 상세 분석: [`monolithic/REQUIREMENTS_ANALYSIS.md`](monolithic/REQUIREMENTS_ANALYSIS.md)
+
+## 요구사항 충족 현황 (microservice - TCC)
+
+| # | 요구사항          |              상태               |
+|---|---------------|:-----------------------------:|
+| 1 | 주문 데이터 저장     |          ✅ 전용 DB 격리           |
+| 2 | 재고관리          |       ✅ 가예약→확정 2단계(TCC)       |
+| 3 | 포인트 사용        |    ⚠️ `userId` 하드코딩(학습 목적)     |
+| 4 | 주문·재고·포인트 정합성 | ✅ TCC 분산 트랜잭션 (최종적 일관성)·복구기 미구현 |
+| 5 | 동일 주문 1회 보장   |   ✅ 분산락 + requestId 멱등 + 상태머신   |
+
+> 상세 분석: [`microservice/REQUIREMENTS_ANALYSIS.md`](microservice/REQUIREMENTS_ANALYSIS.md)
+
+## 두 구현 비교 요약
+
+| 구분 | monolithic | microservice (TCC) |
+|------|------------|--------------------|
+| 정합성(요구 4) | 단일 트랜잭션으로 **즉시(ACID) 일관성** — "공짜" | TCC로 직접 구현 — **최종적 일관성** |
+| 데이터 저장 | 단일 DB | 서비스별 전용 DB(Database per Service) |
+| 멱등성(요구 5) | 분산락 + 주문 상태 | 분산락 + requestId 멱등 + 상태머신 |
+| 트레이드오프 | 확장·독립 배포 어려움 | 독립성 확보, 대신 정합성을 직접 build |
