@@ -1,0 +1,22 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: point-service
+  jpa:
+    hibernate:
+      ddl-auto: create
+    show-sql: true
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:3306/commerce_point
+    username: root
+    password: 1234
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+  kafka:
+    # 직렬화/역직렬화 등 나머지 설정은 com.project.point.config.KafkaConfig 로 옮겼다.
+    bootstrap-servers: 127.0.0.1:9092
