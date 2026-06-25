@@ -6,6 +6,15 @@
 4. 주문, 재고, 포인트 데이터의 정합성이 맞아야 한다.
 5. 동일한 주문은 1번만 이루어져야 한다.
 
+## 구현 모듈
+
+| 모듈 | 방식 | 통신 | 정합성 해법 |
+|------|------|------|------------|
+| `monolithic` | 단일 애플리케이션 | 인메모리 | 단일 트랜잭션(ACID) |
+| `microservice` | 마이크로서비스 | 동기 REST | TCC(Try-Confirm-Cancel) |
+| `microservice-saga-choreography` | 마이크로서비스 | **Kafka 이벤트(비동기)** | 사가 코레오그래피 |
+| `microservice-saga-orchestration` | 마이크로서비스 | **동기 REST** | 사가 오케스트레이션 |
+
 ## 요구사항 충족 현황 (monolithic)
 
 | # | 요구사항          |           상태            |
@@ -30,11 +39,43 @@
 
 > 상세 분석: [`microservice/REQUIREMENTS_ANALYSIS.md`](microservice/REQUIREMENTS_ANALYSIS.md)
 
-## 두 구현 비교 요약
+## 요구사항 충족 현황 (saga - choreography)
 
-| 구분 | monolithic | microservice (TCC) |
-|------|------------|--------------------|
-| 정합성(요구 4) | 단일 트랜잭션으로 **즉시(ACID) 일관성** — "공짜" | TCC로 직접 구현 — **최종적 일관성** |
-| 데이터 저장 | 단일 DB | 서비스별 전용 DB(Database per Service) |
-| 멱등성(요구 5) | 분산락 + 주문 상태 | 분산락 + requestId 멱등 + 상태머신 |
-| 트레이드오프 | 확장·독립 배포 어려움 | 독립성 확보, 대신 정합성을 직접 build |
+| # | 요구사항          |                상태                 |
+|---|---------------|:---------------------------------:|
+| 1 | 주문 데이터 저장     |         ✅ 전용 DB + 커밋 후 이벤트         |
+| 2 | 재고관리          |        ✅ 즉시 차감 + 보상(이벤트)         |
+| 3 | 포인트 사용        |      ⚠️ `userId` 하드코딩(학습 목적)       |
+| 4 | 주문·재고·포인트 정합성 | ✅ 사가 코레오그래피 (최종적 일관성)·아웃박스/DLT 미구현 |
+| 5 | 동일 주문 1회 보장   | ✅ 분산락 + requestId 멱등 + 상태머신 + 파티션 키 |
+
+> 상세 분석: [`microservice-saga-choreography/REQUIREMENTS_ANALYSIS.md`](microservice-saga-choreography/REQUIREMENTS_ANALYSIS.md)
+
+## 요구사항 충족 현황 (saga - orchestration)
+
+| # | 요구사항          |                  상태                  |
+|---|---------------|:------------------------------------:|
+| 1 | 주문 데이터 저장     |             ✅ 전용 DB 격리              |
+| 2 | 재고관리          |         ✅ 즉시 차감 + 보상(REST)          |
+| 3 | 포인트 사용        |        ⚠️ `userId` 하드코딩(학습 목적)        |
+| 4 | 주문·재고·포인트 정합성 | ✅ 사가 오케스트레이션 (최종적 일관성)·조정자 복구 미구현 |
+| 5 | 동일 주문 1회 보장   |    ✅ 분산락 + requestId 멱등 + 상태머신     |
+
+> 상세 분석: [`microservice-saga-orchestration/REQUIREMENTS_ANALYSIS.md`](microservice-saga-orchestration/REQUIREMENTS_ANALYSIS.md)
+
+## 네 구현 비교 요약
+
+| 구분 | monolithic | microservice (TCC) | saga choreography | saga orchestration |
+|------|------------|--------------------|-------------------|--------------------|
+| 정합성(요구 4) | 단일 트랜잭션 **즉시(ACID)** | TCC — 최종적 일관성 | 사가 — 최종적 일관성 | 사가 — 최종적 일관성 |
+| 통신 | 인메모리 | 동기 REST | **Kafka 이벤트(비동기)** | **동기 REST** |
+| 흐름 제어 | 단일 호출 | 중앙(코디네이터) | **분산(이벤트 반응)** | **중앙(Orchestrator)** |
+| 재고·포인트 차감 | 즉시 | 가예약→확정(2단계) | 즉시 + 보상 | 즉시 + 보상 |
+| 보상 방식 | 불필요(롤백) | Cancel 직접 호출 | **실패 이벤트 전파(자가 보상)** | **조정자가 cancel 직접 호출** |
+| 보상 실패 대비 | — | 미구현 | DLT 미구현 | `CompensationRegistry` 적재 |
+| 결합도 | — | 높음 | **낮음(느슨)** | **높음** |
+| 흐름 가시성 | 높음 | 높음 | **낮음(분산)** | **높음(한 곳)** |
+
+### 사가 두 방식 한 줄 요약
+- **코레오그래피**: "누가 지휘하지 않는다." 각 서비스가 이벤트에 반응해 다음 이벤트를 발행 → 느슨한 결합·확장 용이, 대신 흐름 추적이 어렵다.
+- **오케스트레이션**: "한 명이 지휘한다." 중앙 `OrderCoordinator`가 순차 호출·보상 → 흐름이 명확·디버깅 쉽다, 대신 결합도·단일 장애점을 떠안는다.
