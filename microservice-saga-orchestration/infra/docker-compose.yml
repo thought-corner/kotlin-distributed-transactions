@@ -1,0 +1,45 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: microservice-saga-orchestration-mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: "1234"
+      TZ: Asia/Seoul
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql-data:/var/lib/mysql
+    configs:
+      # 별도 파일 없이 compose 안에 인라인으로 초기화 SQL 작성.
+      # 컨테이너 최초 기동(빈 볼륨) 시 1회 실행되어 서비스별 스키마를 만든다.
+      - source: mysql-init
+        target: /docker-entrypoint-initdb.d/01-create-databases.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p1234"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7.4
+    container_name: microservice-saga-orchestration-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+configs:
+  mysql-init:
+    content: |
+      CREATE DATABASE IF NOT EXISTS commerce_order   CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+      CREATE DATABASE IF NOT EXISTS commerce_product CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+      CREATE DATABASE IF NOT EXISTS commerce_point   CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+volumes:
+  mysql-data:
